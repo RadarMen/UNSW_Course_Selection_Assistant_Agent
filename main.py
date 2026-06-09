@@ -6,6 +6,8 @@ from io import BytesIO
 from knowledge_base import KnowledgeBaseService
 from rag import RagService
 
+from uuid import uuid4 # 用于生成唯一的session_id
+
 app = FastAPI(title = "UNSW Course Assistant API")
 
 kb_service = KnowledgeBaseService() # 知识库服务实例
@@ -47,6 +49,15 @@ async def upload_file(file: UploadFile = File(...)):
         "success": True,
         "filename": filename,
         "message": result
+    }
+
+@app.post("/session/create")
+def create_session():
+    session_id = str(uuid4()) # 生成一个唯一的session_id
+
+    return {
+        "success": True,
+        "session_id": session_id
     }
 
 @app.post("/chat")
