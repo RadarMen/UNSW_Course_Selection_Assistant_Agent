@@ -75,9 +75,10 @@ def chat(request: ChatRequest):
         }
     }
 
-    answer = rag_service.chain.invoke(
-        {"input": request.message},
-        config=session_config
+    answer = rag_service.ask(
+        message=request.message,
+        session_id=request.session_id,
+        handbook_type=request.handbook_type
     )
 
     return {
