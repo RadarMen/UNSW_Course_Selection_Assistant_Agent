@@ -8,6 +8,9 @@ from rag import RagService
 
 from uuid import uuid4 # 用于生成唯一的session_id
 
+from file_history_store import get_history
+from langchain_core.messages import message_to_dict
+
 app = FastAPI(title = "UNSW Course Assistant API")
 
 kb_service = KnowledgeBaseService() # 知识库服务实例
@@ -53,6 +56,7 @@ async def upload_file(file: UploadFile = File(...)):
 
 @app.post("/session/create")
 def create_session():
+    # 创建一个新的会话，并返回一个唯一的session_id
     session_id = str(uuid4()) # 生成一个唯一的session_id
 
     return {
@@ -77,4 +81,18 @@ def chat(request: ChatRequest):
         "success": True,
         "session_id": request.session_id,
         "answer": answer
+    }
+
+@app.get("/chat/history/{session_id}")
+def get_chat_history(session_id: str):
+    history = get_history(session_id)
+
+    messages = []
+    for msg in history.messages:
+        messages.append(message_to_dict(msg))
+
+    return {
+        "success": True,
+        "session_id": session_id,
+        "messages": messages
     }
