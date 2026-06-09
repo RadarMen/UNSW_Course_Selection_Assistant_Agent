@@ -19,6 +19,7 @@ rag_service = RagService() # RAG服务实例
 class ChatRequest(BaseModel):
     message: str
     session_id: str = "user_001" # 默认的session_id，可以根据实际情况进行修改
+    handbook_type: str | None = None
 
 def read_pdf(file_bytes: bytes) -> str:
     reader = PdfReader(BytesIO(file_bytes))
@@ -66,6 +67,8 @@ def create_session():
 
 @app.post("/chat")
 def chat(request: ChatRequest):
+    print("handbook_type:", request.handbook_type)
+
     session_config = {
         "configurable": {
             "session_id": request.session_id

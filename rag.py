@@ -85,7 +85,56 @@ class RagService(object):
         )
 
         return conversation_chain
-    
+
+    def ask(self, message: str, session_id: str, handbook_type: str | None = None):
+        """
+        这个函数是对外提供的接口，接收用户输入的消息、会话ID和手册类型（可选），并返回模型生成的回答。
+        1. 首先根据handbook_type参数，决定是否使用向量检索器来获取相关的上下文信息。
+        2. 如果handbook_type参数为None，则直接将用户输入的消息传入问答模型进行回答。
+        3. 如果handbook_type参数不为None，则使用向量检索器来获取与用户输入相关的上下文信息，并将这些上下文信息与用户输入一起传入提示模板中，生成一个完整的提示语，然后再将这个提示语传入问答模型进行回答。
+        4. 最后将模型生成的回答返回给用户。
+        """
+        session_config = {
+            "configurable": {
+                "session_id": session_id
+            }
+        }
+
+        if handbook_type is None:
+            return self.chain.invoke(
+                {"input": message},
+                config=session_config
+            )
+        
+        retriever = self.vector_service.vector_store.as_retriever(
+            # 这里的search_kwargs参数是传递给向量检索器的搜索参数，k表示返回的最相似文档数量，filter表示过滤条件，这里根据handbook_type来过滤文档，只返回handbook_type匹配的文档    
+            search_kwargs={
+                "k": config.similarity_threshold,
+                "filter": {"handbook_type": handbook_type}
+            }
+        )
+
+        docs = retriever.invoke(message)
+
+        if not docs:
+            context = "没有相关资料"
+        else:
+            context = ""
+            for doc in docs:
+                context += f"文档片段:{doc.page_content}\n文档元数据:{doc.metadata}\n\n"
+        
+        prompt = self.prompt_template.invoke({
+            "input": message,
+            "context": context,
+            "history": get_history(session_id).messages
+        })
+
+        result = self.chat_model.invoke(prompt)
+
+        get_history(session_id).add_user_message(message)
+        get_history(session_id).add_ai_message(result.content)    
+
+        return result.content
 
 if __name__ == "__main__":
     # 调用前需要配置session_id，确保每个用户的对话历史记录能够正确区分开来
