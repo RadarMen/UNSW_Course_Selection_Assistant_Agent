@@ -182,6 +182,25 @@ class KnowledgeBaseService(object):
         )
 
         return result.get("metadatas",[])
+    
+    def get_course_prerequisites(self, course_code: str):
+        """
+        新函数用于直接从向量数据库中获取课程的先修要求
+        """
+        metadatas = self.get_course_metadata(course_code)
+
+        prerequisites_set = set()
+
+        for metadata in metadatas:
+            prerequisites_str = metadata.get("prerequisites", "")
+
+            if prerequisites_str:
+                for code in prerequisites_str.split(","):
+                    code = code.strip()
+                    if code and code not in prerequisites_set:
+                        prerequisites_set.add(code)
+
+        return list(prerequisites_set)
 
 if __name__ == "__main__":
     text = """

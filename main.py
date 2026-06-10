@@ -134,3 +134,13 @@ def get_course_metadata(course_code: str):
         "count": len(metadatas),
         "metadatas": metadatas
     }
+
+@app.get("/course/{course_code}/prerequisites")
+def get_course_prerequisites(course_code: str):
+    prerequisites = kb_service.get_course_prerequisites(course_code)
+
+    return {
+        "success": True,
+        "course_code": course_code,
+        "prerequisites": prerequisites
+    }
