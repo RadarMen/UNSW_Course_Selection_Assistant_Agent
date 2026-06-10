@@ -75,6 +75,41 @@ def infer_course_code(filename: str):
 
     return "unknown"
 
+def extract_course_codes(text: str):
+    """
+    从文本中提取UNSW课程代码。
+    课程代码格式通常是：4个大写字母 + 4个数字
+    例如：COMP1511、MATH1234等
+    """
+    codes = re.findall(r"[A-Z]{4}\d{4}", text.upper())
+
+    # 去重并保持顺序
+    unique_codes = []
+    for code in codes:
+        if code not in unique_codes:
+            unique_codes.append(code)
+
+    return unique_codes
+
+def extract_prerequisites(text: str):
+    """
+    从文本中提取课程的先修要求。
+    先修要求通常以 "Prerequisites:" 或 "Prerequisites" 开头，后面跟着具体的要求内容。
+    例如：Prerequisites: COMP1511 or MATH1234
+    """
+    match = re.search(
+        r"Prerequisite:\s*(.*?)(?:\.|\n)",
+        text,
+        re.IGNORECASE | re.DOTALL
+    )
+
+    if not match:
+        return "unknown"
+    
+    prerequisite_text = match.group(1)
+
+    return extract_course_codes(prerequisite_text)
+
 class KnowledgeBaseService(object):
     def __init__(self):
         # 如果文件夹不存在，就创建它
@@ -120,6 +155,7 @@ class KnowledgeBaseService(object):
             "handbook_type": handbook_type,
             "program": program,
             "course_code": course_code,
+            "prerequisites": "",  # 预留一个字段，用于存储课程的先修要求，后续可以通过解析文本来填充这个字段
         }   
 
         # 5. 将分割后的文本块进行向量化，并存入向量数据库中
@@ -136,7 +172,12 @@ class KnowledgeBaseService(object):
 
 
 if __name__ == "__main__":
-    # 下面是一个测试示例，演示如何使用KnowledgeBaseService类来上传一个字符串到知识库中
-    service = KnowledgeBaseService()
-    result = service.upload_by_str("这是一个测试文本，用于测试知识库服务的上传功能。这个文本的长度超过了最大分割字符数量，所以它会被分割成多个文本块。每个文本块都会被向量化，并存入向量数据库中。", "test.txt")
-    print(result)
+    text = """
+    Conditions for Enrolment
+
+    Prerequisite: COMP9101 or COMP9801.
+
+    Other information...
+    """
+
+    print(extract_prerequisites(text))
