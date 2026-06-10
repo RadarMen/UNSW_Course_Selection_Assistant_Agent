@@ -8,6 +8,8 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.documents import Document
 from file_history_store import get_history
 
+from langchain_core.messages import HumanMessage, AIMessage
+
 class RagService(object):
     def __init__(self):
 
@@ -135,6 +137,64 @@ class RagService(object):
         get_history(session_id).add_ai_message(result.content)    
 
         return result.content
+    
+    def ask_stream(
+            self,
+            message: str,
+            session_id: str,
+            handbook_type: str | None = None
+    ):
+        session_config = {
+            "configurable": {
+                "session_id": session_id
+            }
+        }
+
+        if handbook_type is None:
+            for chunk in self.chain.stream(
+                {"input": message},
+                config=session_config
+            ):
+                yield chunk
+            return
+        
+        retriever = self.vector_service.vector_store.as_retriever(
+            search_kwargs={
+                "k": config.similarity_threshold,
+                "filter": {"handbook_type": handbook_type}
+            }
+        )
+
+        docs = retriever.invoke(message)
+        # docs返回的是给prompt的关于上下文的文档
+        # 这些文档来自于向量库中，通过向量检索器得到对应handbook_type的相关文档
+
+        if not docs:
+            context = "没有相关资料"
+        else:
+            context = ""
+            for doc in docs:
+                context += f"文档片段:{doc.page_content}\n文档元数据:{doc.metadata}\n\n"
+        
+        prompt = self.prompt_template.invoke({
+            "input": message,
+            "context": context,
+            "history": get_history(session_id).messages
+        })
+
+        full_response = ""
+
+        for chunk in self.chat_model.stream(prompt):
+            content = chunk.content
+            full_response += content
+            yield content
+        
+        history = get_history(session_id)
+        history.add_messages([
+            HumanMessage(content=message),
+            AIMessage(content=full_response)
+        ])
+
 
 if __name__ == "__main__":
     # 调用前需要配置session_id，确保每个用户的对话历史记录能够正确区分开来

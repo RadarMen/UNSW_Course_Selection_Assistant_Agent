@@ -11,6 +11,8 @@ from uuid import uuid4 # 用于生成唯一的session_id
 from file_history_store import get_history
 from langchain_core.messages import message_to_dict
 
+from fastapi.responses import StreamingResponse
+
 app = FastAPI(title = "UNSW Course Assistant API")
 
 kb_service = KnowledgeBaseService() # 知识库服务实例
@@ -100,3 +102,19 @@ def get_chat_history(session_id: str):
         "session_id": session_id,
         "messages": messages
     }
+
+@app.post("/chat/stream")
+def chat_stream(request: ChatRequest):
+
+    def generate():
+        for chunk in rag_service.ask_stream(
+            message=request.message,
+            session_id=request.session_id,
+            handbook_type=request.handbook_type
+        ):
+            yield chunk
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/plain"
+    )
