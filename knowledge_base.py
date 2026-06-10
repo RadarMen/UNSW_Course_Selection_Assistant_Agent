@@ -201,6 +201,7 @@ class KnowledgeBaseService(object):
                         prerequisites_set.add(code)
 
         return list(prerequisites_set)
+    
 
 if __name__ == "__main__":
     text = """
