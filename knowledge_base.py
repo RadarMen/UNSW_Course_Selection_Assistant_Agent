@@ -171,6 +171,17 @@ class KnowledgeBaseService(object):
 
         return f"文件 {filename} 处理完成，分割成 {len(knowledge_chunks)} 个文本块，存入向量数据库中"
 
+    def get_course_metadata(self, course_code: str):
+        """
+        根据课程代码，从向量数据库中获取这个课程的元数据信息
+        """
+        result = self.chroma.get(
+            where={
+                "course_code": course_code
+            }
+        )
+
+        return result.get("metadatas",[])
 
 if __name__ == "__main__":
     text = """

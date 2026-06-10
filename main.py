@@ -123,3 +123,14 @@ def chat_stream(request: ChatRequest):
         generate(),
         media_type="text/plain"
     )
+
+@app.get("/course/{course_code}/metadata")
+def get_course_metadata(course_code: str):
+    metadatas = kb_service.get_course_metadata(course_code)
+
+    return {
+        "success": True,
+        "course_code": course_code,
+        "count": len(metadatas),
+        "metadatas": metadatas
+    }
