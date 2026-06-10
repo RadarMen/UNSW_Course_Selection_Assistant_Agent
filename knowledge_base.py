@@ -134,6 +134,7 @@ class KnowledgeBaseService(object):
         handbook_type = infer_handbook_type(filename)
         program = infer_program(filename)
         course_code = infer_course_code(filename)
+        prerequisites = extract_prerequisites(data)
         # 1. 首先计算这个字符串的md5值
         md5_hex = get_string_md5(data)
         # 2. 检查这个md5值是否已经被处理过了
@@ -155,7 +156,7 @@ class KnowledgeBaseService(object):
             "handbook_type": handbook_type,
             "program": program,
             "course_code": course_code,
-            "prerequisites": "",  # 预留一个字段，用于存储课程的先修要求，后续可以通过解析文本来填充这个字段
+            "prerequisites": ",".join(prerequisites),  # 将提取到的先修要求存入元数据中
         }   
 
         # 5. 将分割后的文本块进行向量化，并存入向量数据库中

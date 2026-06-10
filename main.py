@@ -18,6 +18,8 @@ app = FastAPI(title = "UNSW Course Assistant API")
 kb_service = KnowledgeBaseService() # 知识库服务实例
 rag_service = RagService() # RAG服务实例
 
+from knowledge_base import extract_prerequisites
+
 class ChatRequest(BaseModel):
     message: str
     session_id: str = "user_001" # 默认的session_id，可以根据实际情况进行修改
@@ -50,11 +52,14 @@ async def upload_file(file: UploadFile = File(...)):
     else:
         return {"success": False, "message": "只支持PDF和TXT格式的文件"}
     
+    prerequisites = extract_prerequisites(content)
+    
     result = kb_service.upload_by_str(content, filename)
     return {
         "success": True,
         "filename": filename,
-        "message": result
+        "message": result,
+        "prerequisites": prerequisites
     }
 
 @app.post("/session/create")
