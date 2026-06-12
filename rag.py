@@ -10,8 +10,12 @@ from file_history_store import get_history
 
 from langchain_core.messages import HumanMessage, AIMessage
 
+from query_parser import QueryParserService
+
 class RagService(object):
     def __init__(self):
+        
+        self.query_parser = QueryParserService() # 问题分类器实例
 
         self.vector_service = VectorStoreService(
             embedding=DashScopeEmbeddings(model=config.embedding_model_name)
@@ -96,7 +100,7 @@ class RagService(object):
         3. 如果handbook_type参数不为None，则使用向量检索器来获取与用户输入相关的上下文信息，并将这些上下文信息与用户输入一起传入提示模板中，生成一个完整的提示语，然后再将这个提示语传入问答模型进行回答。
         4. 最后将模型生成的回答返回给用户。
         """
-        question_type, handbook_type = self.route_question(
+        question_type, handbook_type = self.query_parser.route_question(
         message=message,
         handbook_type=handbook_type
         )
@@ -161,7 +165,7 @@ class RagService(object):
             session_id: str,
             handbook_type: str | None = None
     ):
-        question_type, handbook_type = self.route_question(
+        question_type, handbook_type = self.query_parser.route_question(
             message=message,
             handbook_type=handbook_type
         )
@@ -220,51 +224,51 @@ class RagService(object):
             AIMessage(content=full_response)
         ])
 
-    def classify_question(self, message: str):
-        """
-        这个函数的作用是根据用户输入的问题内容，来判断这个问题属于哪一类。
-        分类的依据是根据问题中是否包含一些特定的关键词来进行判断的。
-            例如，如果问题中包含 "prerequisite"、"prereq"、"先修"、"前置课程"、"能不能选"、"可以选" 等关键词，那么这个问题就被归类为 "prerequisite" 类别。
-            如果问题中包含 "program"、"degree"、"学位"、"专业"、"master"、"学分"、"uoc"、"毕业要求" 等关键词，那么这个问题就被归类为 "program_requirement" 类别。
-            如果问题中包含 "course"、"课程"、"comp"、"math"、"介绍"、"内容"、"学什么" 等关键词，那么这个问题就被归类为 "course_information" 类别。
-        如果问题中不包含上述任何关键词，那么这个问题就被归类为 "general" 类别。
-        这个函数的作用是为了在后续的处理过程中，能够根据问题的类别来决定是否需要使用向量检索器来获取相关的上下文信息，以及如何组织提示语来更好地回答用户的问题。
-        """
-        message_lower = message.lower()
+    # def classify_question(self, message: str):
+    #     """
+    #     这个函数的作用是根据用户输入的问题内容，来判断这个问题属于哪一类。
+    #     分类的依据是根据问题中是否包含一些特定的关键词来进行判断的。
+    #         例如，如果问题中包含 "prerequisite"、"prereq"、"先修"、"前置课程"、"能不能选"、"可以选" 等关键词，那么这个问题就被归类为 "prerequisite" 类别。
+    #         如果问题中包含 "program"、"degree"、"学位"、"专业"、"master"、"学分"、"uoc"、"毕业要求" 等关键词，那么这个问题就被归类为 "program_requirement" 类别。
+    #         如果问题中包含 "course"、"课程"、"comp"、"math"、"介绍"、"内容"、"学什么" 等关键词，那么这个问题就被归类为 "course_information" 类别。
+    #     如果问题中不包含上述任何关键词，那么这个问题就被归类为 "general" 类别。
+    #     这个函数的作用是为了在后续的处理过程中，能够根据问题的类别来决定是否需要使用向量检索器来获取相关的上下文信息，以及如何组织提示语来更好地回答用户的问题。
+    #     """
+    #     message_lower = message.lower()
 
-        if any(keyword in message_lower for keyword in [
-            "prerequisite", "prereq", "先修", "前置课程", "能不能选", "可以选"
-        ]):
-            return "prerequisite"
+    #     if any(keyword in message_lower for keyword in [
+    #         "prerequisite", "prereq", "先修", "前置课程", "能不能选", "可以选"
+    #     ]):
+    #         return "prerequisite"
 
-        if any(keyword in message_lower for keyword in [
-            "program", "degree", "学位", "专业", "master", "学分", "uoc", "毕业要求"
-        ]):
-            return "program_requirement"
+    #     if any(keyword in message_lower for keyword in [
+    #         "program", "degree", "学位", "专业", "master", "学分", "uoc", "毕业要求"
+    #     ]):
+    #         return "program_requirement"
 
-        if any(keyword in message_lower for keyword in [
-            "course", "课程", "comp", "math", "介绍", "内容", "学什么"
-        ]):
-            return "course_information"
+    #     if any(keyword in message_lower for keyword in [
+    #         "course", "课程", "comp", "math", "介绍", "内容", "学什么"
+    #     ]):
+    #         return "course_information"
 
-        return "general"
+    #     return "general"
     
-    def route_question(
-            self,
-            message: str,
-            handbook_type: str | None = None
-    ):
-        question_type = self.classify_question(message)
+    # def route_question(
+    #         self,
+    #         message: str,
+    #         handbook_type: str | None = None
+    # ):
+    #     question_type = self.classify_question(message)
 
-        if handbook_type is None or handbook_type == "":
-            if question_type == "prerequisite":
-                handbook_type = "course"
-            elif question_type == "program_requirement":
-                handbook_type = "program"
-            elif question_type == "course_information":
-                handbook_type = "course"
+    #     if handbook_type is None or handbook_type == "":
+    #         if question_type == "prerequisite":
+    #             handbook_type = "course"
+    #         elif question_type == "program_requirement":
+    #             handbook_type = "program"
+    #         elif question_type == "course_information":
+    #             handbook_type = "course"
 
-        return question_type, handbook_type
+    #     return question_type, handbook_type
 
 
 if __name__ == "__main__":
