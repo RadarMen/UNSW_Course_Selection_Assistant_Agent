@@ -100,10 +100,14 @@ class RagService(object):
         3. 如果handbook_type参数不为None，则使用向量检索器来获取与用户输入相关的上下文信息，并将这些上下文信息与用户输入一起传入提示模板中，生成一个完整的提示语，然后再将这个提示语传入问答模型进行回答。
         4. 最后将模型生成的回答返回给用户。
         """
-        question_type, handbook_type = self.query_parser.route_question(
-        message=message,
-        handbook_type=handbook_type
+        query_info = self.query_parser.parse(
+            message=message,
+            handbook_type=handbook_type
         )
+
+        question_type = query_info["question_type"]
+        handbook_type = query_info["handbook_type"]
+        target_course = query_info["target_course"]
 
         print("handbook_type in ask:", handbook_type)
         print("question_type in ask:", question_type)
@@ -165,10 +169,14 @@ class RagService(object):
             session_id: str,
             handbook_type: str | None = None
     ):
-        question_type, handbook_type = self.query_parser.route_question(
+        query_info = self.query_parser.parse(
             message=message,
             handbook_type=handbook_type
         )
+
+        question_type = query_info["question_type"]
+        handbook_type = query_info["handbook_type"]
+        target_course = query_info["target_course"]
 
         print("handbook_type in ask_stream:", handbook_type)
         print("question_type in ask_stream:", question_type)
