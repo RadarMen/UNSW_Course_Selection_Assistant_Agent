@@ -96,15 +96,13 @@ class RagService(object):
         3. 如果handbook_type参数不为None，则使用向量检索器来获取与用户输入相关的上下文信息，并将这些上下文信息与用户输入一起传入提示模板中，生成一个完整的提示语，然后再将这个提示语传入问答模型进行回答。
         4. 最后将模型生成的回答返回给用户。
         """
-        question_type = self.classify_question(message)
-        print(f"问题类型: {question_type}")
-        if handbook_type is None:
-            if question_type == "prerequisite":
-                handbook_type = "course"
-            elif question_type == "program_requirement":
-                handbook_type = "program"
-            elif question_type == "course_information":
-                handbook_type = "course"
+        question_type, handbook_type = self.route_question(
+        message=message,
+        handbook_type=handbook_type
+        )
+
+        print("handbook_type in ask:", handbook_type)
+        print("question_type in ask:", question_type)
 
         session_config = {
             "configurable": {
@@ -112,7 +110,7 @@ class RagService(object):
             }
         }
 
-        if handbook_type is None:
+        if not handbook_type:
             return self.chain.invoke(
                 {"input": message},
                 config=session_config
@@ -154,23 +152,21 @@ class RagService(object):
             session_id: str,
             handbook_type: str | None = None
     ):
-        question_type = self.classify_question(message)
-        print("question_type:", question_type)
+        question_type, handbook_type = self.route_question(
+            message=message,
+            handbook_type=handbook_type
+        )
 
-        if handbook_type is None:
-            if question_type == "prerequisite":
-                handbook_type = "course"
-            elif question_type == "course_information":
-                handbook_type = "course"
-            elif question_type == "program_requirement":
-                handbook_type = "program"
+        print("handbook_type in ask_stream:", handbook_type)
+        print("question_type in ask_stream:", question_type)
+
         session_config = {
             "configurable": {
                 "session_id": session_id
             }
         }
-
-        if handbook_type is None:
+        
+        if not handbook_type:
             for chunk in self.chain.stream(
                 {"input": message},
                 config=session_config
@@ -243,6 +239,23 @@ class RagService(object):
             return "course_information"
 
         return "general"
+    
+    def route_question(
+            self,
+            message: str,
+            handbook_type: str | None = None
+    ):
+        question_type = self.classify_question(message)
+
+        if handbook_type is None or handbook_type == "":
+            if question_type == "prerequisite":
+                handbook_type = "course"
+            elif question_type == "program_requirement":
+                handbook_type = "program"
+            elif question_type == "course_information":
+                handbook_type = "course"
+
+        return question_type, handbook_type
 
 
 if __name__ == "__main__":
