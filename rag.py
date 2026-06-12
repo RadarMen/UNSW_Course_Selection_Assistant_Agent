@@ -111,10 +111,15 @@ class RagService(object):
         }
 
         if not handbook_type:
-            return self.chain.invoke(
+            answer = self.chain.invoke(
                 {"input": message},
                 config=session_config
             )
+            return {
+                "answer": answer,
+                "question_type": question_type,
+                "handbook_type": handbook_type
+            }
         
         retriever = self.vector_service.vector_store.as_retriever(
             # 这里的search_kwargs参数是传递给向量检索器的搜索参数，k表示返回的最相似文档数量，filter表示过滤条件，这里根据handbook_type来过滤文档，只返回handbook_type匹配的文档    
@@ -144,7 +149,11 @@ class RagService(object):
         get_history(session_id).add_user_message(message)
         get_history(session_id).add_ai_message(result.content)    
 
-        return result.content
+        return {
+            "answer": result.content,
+            "question_type": question_type,
+            "handbook_type": handbook_type
+        }
     
     def ask_stream(
             self,
@@ -165,7 +174,7 @@ class RagService(object):
                 "session_id": session_id
             }
         }
-        
+
         if not handbook_type:
             for chunk in self.chain.stream(
                 {"input": message},
