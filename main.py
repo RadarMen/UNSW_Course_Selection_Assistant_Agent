@@ -76,13 +76,7 @@ def create_session():
 def chat(request: ChatRequest):
     print("handbook_type:", request.handbook_type)
 
-    session_config = {
-        "configurable": {
-            "session_id": request.session_id
-        }
-    }
-
-    answer = rag_service.ask(
+    result = rag_service.ask(
         message=request.message,
         session_id=request.session_id,
         handbook_type=request.handbook_type
@@ -91,7 +85,10 @@ def chat(request: ChatRequest):
     return {
         "success": True,
         "session_id": request.session_id,
-        "answer": answer
+        "question_type": result["question_type"],
+        "handbook_type": result["handbook_type"],
+        "query_info": result["query_info"],
+        "answer": result["answer"]
     }
 
 @app.get("/chat/history/{session_id}")

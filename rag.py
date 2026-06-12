@@ -126,7 +126,8 @@ class RagService(object):
             return {
                 "answer": answer,
                 "question_type": question_type,
-                "handbook_type": handbook_type
+                "handbook_type": handbook_type,
+                "query_info": query_info
             }
         
         retriever = self.vector_service.vector_store.as_retriever(
@@ -160,7 +161,8 @@ class RagService(object):
         return {
             "answer": result.content,
             "question_type": question_type,
-            "handbook_type": handbook_type
+            "handbook_type": handbook_type,
+            "query_info": query_info
         }
     
     def ask_stream(

@@ -23,7 +23,10 @@ class QueryParserService:
         return {
             "question_type": question_type,
             "handbook_type": routed_handbook_type,
-            "target_course": target_course
+            "target_course": target_course,
+            "need_vector_search": True,
+            "need_metadata": target_course is not None,
+            "raw_query": message
         }
 
     def classify_question(self, message: str) -> str:
