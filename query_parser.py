@@ -4,8 +4,13 @@
 # updated on 2025-06-12
 # 为QueryParserService增加了结构化输出
 import re
+from llm_query_parser import LLMQueryParserService
 
 class QueryParserService:
+    def __init__(self):
+        self.use_llm_parser = True # 是否使用LLM Parser来进行问题分类和路由
+        self.llm_parser = LLMQueryParserService() # LLM Parser实例
+
     def extract_target_course(self, message: str):
         match = re.search(r"[A-Z]{4}\d{4}", message.upper())
         if match:
@@ -13,6 +18,16 @@ class QueryParserService:
         return None
     
     def parse(self, message: str, handbook_type: str | None = None):
+        if self.use_llm_parser:
+            llm_result = self.llm_parser.parse(
+                query = message
+            )
+            # 如果前端手动传入了handbook_type,则优先尊重前端输入
+            if handbook_type is not None and handbook_type != "":
+                llm_result["handbook_type"] = handbook_type
+            
+            return llm_result
+        
         question_type, routed_handbook_type = self.route_question(
             message=message,
             handbook_type=handbook_type
