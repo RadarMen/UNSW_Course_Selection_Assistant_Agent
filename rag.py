@@ -23,8 +23,8 @@ class RagService(object):
         
         self.prompt_template = ChatPromptTemplate.from_messages(
             [
-                ("system", "以我提供的已知参考资料为基础，"
-                 "简洁和专业地回答用户提供关于UNSW学校选课的问题。参考资料：{context}。"),
+                ("system", "以我提供的已知参考资料为基础，简洁和专业地回答用户提供关于UNSW学校选课的问题。参考资料：{context}。"),
+                ("system", "系统对用户问题的结构化解析如下：{query_info}。请结合该解析理解用户意图，但不要盲目相信解析结果；如果解析和参考资料冲突，以参考资料为准。"),
                 ("system", "我提供对话历史记录如下："),
                 MessagesPlaceholder(variable_name="history"), # 占位符，表示对话历史记录在这里，后续会通过RunnableWithMessageHistory将对话历史记录传入
                 ("user","请回答用户提问：{input}。"),
@@ -119,12 +119,22 @@ class RagService(object):
         }
 
         if not handbook_type:
-            answer = self.chain.invoke(
-                {"input": message},
-                config=session_config
-            )
+            context = "没有指定 handbook_type，未进行 metadata 过滤检索。"
+
+            prompt = self.prompt_template.invoke({
+                "input": message,
+                "context": context,
+                "history": get_history(session_id).messages,
+                "query_info": query_info
+            })
+
+            result = self.chat_model.invoke(prompt)
+
+            get_history(session_id).add_user_message(message)
+            get_history(session_id).add_ai_message(result.content)
+
             return {
-                "answer": answer,
+                "answer": result.content,
                 "question_type": question_type,
                 "handbook_type": handbook_type,
                 "query_info": query_info
@@ -150,7 +160,8 @@ class RagService(object):
         prompt = self.prompt_template.invoke({
             "input": message,
             "context": context,
-            "history": get_history(session_id).messages
+            "history": get_history(session_id).messages,
+            "query_info": query_info
         })
 
         result = self.chat_model.invoke(prompt)
@@ -190,11 +201,28 @@ class RagService(object):
         }
 
         if not handbook_type:
-            for chunk in self.chain.stream(
-                {"input": message},
-                config=session_config
-            ):
-                yield chunk
+            context = "没有指定 handbook_type，未进行 metadata 过滤检索。"
+
+            prompt = self.prompt_template.invoke({
+                "input": message,
+                "context": context,
+                "history": get_history(session_id).messages,
+                "query_info": query_info
+            })
+
+            full_response = ""
+
+            for chunk in self.chat_model.stream(prompt):
+                content = chunk.content
+                full_response += content
+                yield content
+
+            history = get_history(session_id)
+            history.add_messages([
+                HumanMessage(content=message),
+                AIMessage(content=full_response)
+            ])
+
             return
         
         retriever = self.vector_service.vector_store.as_retriever(
@@ -218,7 +246,8 @@ class RagService(object):
         prompt = self.prompt_template.invoke({
             "input": message,
             "context": context,
-            "history": get_history(session_id).messages
+            "history": get_history(session_id).messages,
+            "query_info": query_info
         })
 
         full_response = ""

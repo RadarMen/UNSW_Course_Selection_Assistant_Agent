@@ -1,265 +1,427 @@
-# UNSW 选课辅助 Agent（RAG）
-
-一个基于 RAG（Retrieval-Augmented Generation，检索增强生成）的 UNSW 选课辅助系统。
-
-本项目基于 FastAPI、LangChain、ChromaDB 和 Qwen 构建，支持上传 UNSW handbook（课程手册）文件，并通过向量数据库实现课程信息检索与智能问答。
 
 ---
 
-# 项目功能
+# 基于RAG与Agent的UNSW智能选课助手
 
-## 当前 MVP 已实现功能
-
-* 上传 UNSW handbook 文件（PDF / TXT）
-* 自动文本切分与向量化
-* ChromaDB 向量数据库存储
-* 基于 RAG 的课程问答
-* 对话历史记录支持
-* 基于 session_id 的会话隔离
-* 文件 MD5 去重检测
-* FastAPI REST API 接口
-* Swagger API 文档
+> 基于 RAG（检索增强生成）、FastAPI、向量数据库和 LLM Query Parser 构建的 UNSW 智能选课辅助 Agent。
 
 ---
 
-# 技术栈
+# 项目简介
 
-## 后端
+本项目旨在为 UNSW（University of New South Wales）学生提供一个智能选课助手。
 
-* Python
-* FastAPI
-* LangChain
+系统能够读取 UNSW Handbook（课程手册），自动构建知识库，并结合大语言模型为学生提供课程信息查询、毕业要求查询以及选课建议。
 
-## 向量数据库
-
-* ChromaDB
-
-## 大模型与向量模型
-
-* Qwen（通义千问）
-* DashScope Embedding API
-
-## 文档处理
-
-* PyPDF
-* RecursiveCharacterTextSplitter
+项目目标并非构建一个简单的聊天机器人，而是逐步演化为一个能够理解用户意图并辅助进行选课规划的 AI Agent。
 
 ---
 
-# 项目结构
+# 核心功能
 
-```bash
-project/
-│
-├── main.py                     # FastAPI 入口文件
-├── rag.py                      # RAG 问答链
-├── knowledge_base.py           # 知识库服务
-├── vector_stores.py            # 向量数据库服务
-├── file_history_store.py       # 对话历史存储
-├── config_data.py              # 项目配置
-│
-├── chroma_db/                  # Chroma 数据持久化目录
-├── chat_history/               # 对话历史记录
-├── md5.txt                     # 已上传文件 MD5 记录
-│
-├── app_qa.py                   # 旧版 Streamlit 问答页面
-├── app_file_uploader.py        # 旧版 Streamlit 上传页面
+## 1. Handbook上传与知识库构建
+
+支持上传：
+
+* Program Handbook（专业培养方案）
+* Course Handbook（课程手册）
+
+系统自动完成：
+
+```text
+PDF上传
+↓
+文本提取
+↓
+文本切分
+↓
+Embedding向量化
+↓
+Chroma向量数据库存储
 ```
 
 ---
 
-# API 接口
+## 2. Metadata信息提取
 
-## 1. 健康检查接口
-
-```http
-GET /health
-```
-
-返回：
+系统会自动提取课程相关元数据：
 
 ```json
 {
-  "status": "ok"
+    "university": "UNSW",
+    "degree_level": "postgraduate",
+    "year": "2026",
+    "handbook_type": "course",
+    "program": "Artificial Intelligence",
+    "course_code": "COMP9417",
+    "prerequisites": "COMP9101,COMP9801"
 }
+```
+
+支持：
+
+* Program分类
+* Course分类
+* 课程代码识别
+* 先修课提取
+
+---
+
+## 3. RAG问答系统
+
+系统基于 Retrieval-Augmented Generation（RAG）构建。
+
+工作流程：
+
+```text
+用户问题
+↓
+向量检索
+↓
+获取相关Handbook内容
+↓
+Prompt构建
+↓
+Qwen大模型推理
+↓
+生成回答
+```
+
+支持：
+
+* 课程信息查询
+* 专业培养方案查询
+* 毕业要求查询
+* Handbook内容问答
+
+---
+
+## 4. Query Parser（查询解析层）
+
+为了避免所有问题都直接进入 RAG，系统新增了 Query Parser 层。
+
+用户问题会首先被解析为结构化指令。
+
+例如：
+
+用户输入：
+
+```text
+我已经修了COMP9101，可以选COMP9417吗？
+```
+
+系统解析结果：
+
+```json
+{
+    "question_type": "prerequisite_check",
+    "target_course": "COMP9417",
+    "completed_courses": [
+        "COMP9101"
+    ]
+}
+```
+
+从而实现：
+
+```text
+自然语言
+↓
+结构化JSON
+↓
+Agent决策
 ```
 
 ---
 
-## 2. 上传 Handbook
+## 5. Agent路由机制
+
+系统会根据问题类型自动决定检索策略。
+
+例如：
+
+### 课程信息类问题
+
+```text
+COMP9517学什么？
+```
+
+自动检索：
+
+```text
+Course Handbook
+```
+
+---
+
+### 专业要求类问题
+
+```text
+AI Master需要多少学分毕业？
+```
+
+自动检索：
+
+```text
+Program Handbook
+```
+
+---
+
+### 先修课问题
+
+```text
+COMP9417有什么先修课？
+```
+
+自动检索：
+
+```text
+Course Handbook
++ Metadata
+```
+
+---
+
+## 6. LLM Query Parser
+
+除了传统规则分类器外，系统还实现了基于大语言模型的 Query Parser。
+
+工作流程：
+
+```text
+用户问题
+↓
+LLM解析
+↓
+结构化JSON
+↓
+Agent决策
+```
+
+同时保留：
+
+```text
+Rule Parser
+```
+
+作为兜底方案（Fallback）。
+
+保证系统稳定运行。
+
+---
+
+## 7. 会话管理
+
+支持：
+
+```text
+Session
+Conversation History
+Multi-turn Chat
+```
+
+每个 Session 拥有独立对话历史。
+
+---
+
+## 8. 流式输出
+
+支持：
+
+```http
+POST /chat
+POST /chat/stream
+```
+
+实现类似 ChatGPT 的实时生成效果。
+
+---
+
+# 系统架构
+
+```text
+用户
+ │
+ ▼
+FastAPI
+ │
+ ▼
+Chat API
+ │
+ ▼
+Query Parser Layer
+ ├── LLM Query Parser
+ └── Rule Parser(Fallback)
+ │
+ ▼
+Structured Query JSON
+ │
+ ▼
+RAG Service
+ ├── Metadata Filter
+ ├── Vector Retrieval
+ ├── Session History
+ └── Prompt Builder
+ │
+ ▼
+Qwen-Max
+ │
+ ▼
+Answer
+```
+
+---
+
+# API接口
+
+## 上传Handbook
 
 ```http
 POST /upload
 ```
 
-支持格式：
-
-* PDF
-* TXT
-
-文件命名示例：
-
-```text
-program_artificial_intelligence_2026.pdf
-course_COMP9417_2026.pdf
-```
+上传课程手册并构建知识库。
 
 ---
 
-## 3. 智能问答接口
+## 创建会话
+
+```http
+POST /session/create
+```
+
+创建新的聊天会话。
+
+---
+
+## 普通问答
 
 ```http
 POST /chat
 ```
 
-请求示例：
-
-```json
-{
-  "message": "COMP9417 有什么先修课要求？",
-  "session_id": "user_001"
-}
-```
-
-返回示例：
-
-```json
-{
-  "success": true,
-  "session_id": "user_001",
-  "answer": "..."
-}
-```
+返回完整回答。
 
 ---
 
-# Handbook 命名规则
+## 流式问答
 
-系统会根据文件名自动推断 metadata。
+```http
+POST /chat/stream
+```
+
+实时返回生成结果。
 
 ---
 
-## Program Handbook
+## 查询聊天历史
 
-命名格式：
-
-```text
-program_<program_name>_<year>.pdf
+```http
+GET /chat/history/{session_id}
 ```
 
-示例：
-
-```text
-program_artificial_intelligence_2026.pdf
-```
+获取指定会话历史记录。
 
 ---
 
-## Course Handbook
+# 技术栈
 
-命名格式：
+## 后端框架
 
-```text
-course_<course_code>_<year>.pdf
-```
+* FastAPI
 
-示例：
+## 大语言模型
 
-```text
-course_COMP9417_2026.pdf
-```
+* Qwen-Max
+* Tongyi Chat Model
 
----
+## Embedding模型
 
-# Metadata（元数据）
+* DashScope Embedding
 
-当前 metadata 字段：
+## 向量数据库
 
-```python
-{
-    "source": filename,
-    "create_time": "...",
-    "university": "UNSW",
-    "degree_level": "postgraduate",
-    "year": "2026",
-    "handbook_type": "...",
-    "program": "...",
-    "course_code": "..."
-}
-```
+* ChromaDB
+
+## Agent框架
+
+* LangChain
+
+## 数据存储
+
+* Local File Storage
+* Chroma Vector Store
 
 ---
 
-# 如何运行项目
+# 当前完成情况
 
-## 1. 安装依赖
+## 已完成
 
-```bash
-pip install -r requirements.txt
-```
+### RAG部分
 
----
+* PDF上传
+* PDF解析
+* Metadata提取
+* Chroma向量数据库
+* 检索增强生成（RAG）
 
-## 2. 配置 API Key
+### Agent部分
 
-运行前需要配置 DashScope API Key。
+* Query Parser
+* Rule-based Routing
+* LLM Query Parser
+* Structured Query Parsing
+* Agent Routing
 
-Windows：
+### 工程部分
 
-```bash
-set DASHSCOPE_API_KEY=your_api_key
-```
-
-Linux / Mac：
-
-```bash
-export DASHSCOPE_API_KEY=your_api_key
-```
-
----
-
-## 3. 启动 FastAPI 服务
-
-```bash
-uvicorn main:app --reload
-```
+* FastAPI接口化
+* Session管理
+* 对话历史管理
+* Streaming输出
 
 ---
 
-## 4. 打开 Swagger 文档
+## 后续规划
 
-浏览器访问：
+### 产品化
 
-```text
-http://127.0.0.1:8000/docs
-```
+* 用户注册
+* 用户登录
+* 用户隔离
 
----
+### Agent增强
 
-# 后续计划
+* 学分计算
+* 先修课依赖分析
+* 课程关系图谱
+* 自动选课规划
 
-* 用户登录与注册系统
-* 多用户隔离
-* 数据库存储
-* 前端页面
-* 流式输出接口
-* 更完善的 metadata 过滤
-* 学位培养方案规划 Agent
-* 多学校支持
-* 课程推荐系统
+### 部署
+
+* Docker部署
+* 云服务器部署
+* Web前端
 
 ---
 
 # 项目目标
 
-本项目旨在构建一个基于 RAG 与向量数据库的高校选课辅助系统。
+构建一个真正能够辅助 UNSW 学生完成：
 
-长期目标是通过读取 handbook 文档，实现对不同学校的通用化支持。
+```text
+课程查询
+↓
+培养方案理解
+↓
+选课规划
+↓
+毕业要求分析
+```
+
+的智能选课 Agent。
 
 ---
 
-# 声明
-
-本项目仅用于学习与实验目的。
-
-实际选课请以 UNSW 官方 handbook 信息为准。
