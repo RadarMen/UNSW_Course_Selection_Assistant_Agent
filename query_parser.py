@@ -19,29 +19,37 @@ class QueryParserService:
     
     def parse(self, message: str, handbook_type: str | None = None):
         if self.use_llm_parser:
-            llm_result = self.llm_parser.parse(
-                query = message
-            )
-            # 如果前端手动传入了handbook_type,则优先尊重前端输入
-            if handbook_type is not None and handbook_type != "":
-                llm_result["handbook_type"] = handbook_type
+            llm_result = self.llm_parser.parse(message)
+
+            if (
+                "parser_error" not in llm_result
+                and llm_result.get("question_type")
+                and "handbook_type" in llm_result
+            ):
+                if handbook_type is not None and handbook_type != "":
+                    llm_result["handbook_type"] = handbook_type
+
+                llm_result["parser_source"] = "llm"
+                return llm_result
             
-            return llm_result
+            print("LLM Parser failed, fallback to rule-based parser")
         
-        question_type, routed_handbook_type = self.route_question(
-            message=message,
-            handbook_type=handbook_type
+        question_type, handbook_type = self.route_question(
+            message = message,
+            handbook_type = handbook_type
         )
 
         target_course = self.extract_target_course(message)
 
         return {
             "question_type": question_type,
-            "handbook_type": routed_handbook_type,
+            "handbook_type": handbook_type,
             "target_course": target_course,
-            "need_vector_search": True,
-            "need_metadata": target_course is not None,
-            "raw_query": message
+            "completed_courses": [], # 目前还没有做完成课程的提取，先返回一个空列表，后续可以根据需要增加这个功能
+            "need_vector_search": question_type in ["prerequisite", "course_information"], # 只有当问题类型是先修课或者课程信息时，才需要向量搜索
+            "need_metadata": question_type == "program_requirement", # 只有当问题类型是毕业要求时，才需要元数据
+            "raw_query": message,
+            "parser_source": "rule"
         }
 
     def classify_question(self, message: str) -> str:
