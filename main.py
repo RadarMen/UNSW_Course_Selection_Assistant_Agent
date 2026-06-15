@@ -29,6 +29,8 @@ from auth_service import (
     authenticate_user
 )
 
+from chat_service import create_chat_session
+
 app = FastAPI(title = "UNSW Course Assistant API")
 
 Base.metadata.create_all(bind=engine)
@@ -79,13 +81,26 @@ async def upload_file(file: UploadFile = File(...)):
     }
 
 @app.post("/session/create")
-def create_session(request: SessionCreateRequest):
-    # 为用户生成一个唯一的session_id，可以使用UUID或者其他方法
-    session_id = f"user_{request.user_id}_{uuid4()}"
+def create_session(
+    request: SessionCreateRequest,
+    db: Session = Depends(get_db)
+    ):
+    session_id = f"user_{request.user_id}_{uuid4().hex}" # 生成唯一的session_id
+
+    chat_session = create_chat_session(
+        db=db,
+        user_id=request.user_id,
+        session_id=session_id,
+        title="新对话"
+    )
+
     return {
         "success": True,
-        "session_id": session_id
+        "user_id": request.user_id,
+        "session_id": session_id,
+        "title": chat_session.title
     }
+    
 
 @app.post("/chat")
 def chat(request: ChatRequest):
