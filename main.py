@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from pydantic import BaseModel
 from pypdf import PdfReader
 from io import BytesIO
@@ -13,12 +13,28 @@ from langchain_core.messages import message_to_dict
 
 from fastapi.responses import StreamingResponse
 
+from knowledge_base import extract_prerequisites
+
+from database import engine
+from models import Base
+
+from sqlalchemy.orm import Session
+
+from database import get_db
+from schemas import UserRegisterRequest, UserLoginRequest
+from auth_service import (
+    get_user_by_username,
+    get_user_by_email,
+    create_user,
+    authenticate_user
+)
+
 app = FastAPI(title = "UNSW Course Assistant API")
+
+Base.metadata.create_all(bind=engine)
 
 kb_service = KnowledgeBaseService() # 知识库服务实例
 rag_service = RagService() # RAG服务实例
-
-from knowledge_base import extract_prerequisites
 
 class ChatRequest(BaseModel):
     message: str
@@ -140,4 +156,66 @@ def get_course_prerequisites(course_code: str):
         "success": True,
         "course_code": course_code,
         "prerequisites": prerequisites
+    }
+
+
+@app.post("/auth/register")
+def register(
+    request: UserRegisterRequest,
+    db: Session = Depends(get_db)
+):
+    if get_user_by_username(db, request.username):
+        raise HTTPException(
+            status_code=400,
+            detail="用户名已存在"
+        )
+
+    if get_user_by_email(db, request.email):
+        raise HTTPException(
+            status_code=400,
+            detail="邮箱已存在"
+        )
+
+    user = create_user(
+        db=db,
+        username=request.username,
+        email=request.email,
+        password=request.password
+    )
+
+    return {
+        "success": True,
+        "message": "注册成功",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email
+        }
+    }
+
+@app.post("/auth/login")
+def login(
+    request: UserLoginRequest,
+    db: Session = Depends(get_db)
+):
+    user = authenticate_user(
+        db=db,
+        username=request.username,
+        password=request.password
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="用户名或密码错误"
+        )
+    
+    return {
+        "success": True,
+        "message": "登录成功",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email
+        }
     }
