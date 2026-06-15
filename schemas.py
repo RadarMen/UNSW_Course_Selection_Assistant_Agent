@@ -8,3 +8,6 @@ class UserRegisterRequest(BaseModel):
 class UserLoginRequest(BaseModel):
     username: str
     password: str
+
+class SessionCreateRequest(BaseModel):
+    user_id: int

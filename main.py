@@ -21,7 +21,7 @@ from models import Base
 from sqlalchemy.orm import Session
 
 from database import get_db
-from schemas import UserRegisterRequest, UserLoginRequest
+from schemas import UserRegisterRequest, UserLoginRequest, SessionCreateRequest
 from auth_service import (
     get_user_by_username,
     get_user_by_email,
@@ -79,10 +79,9 @@ async def upload_file(file: UploadFile = File(...)):
     }
 
 @app.post("/session/create")
-def create_session():
-    # 创建一个新的会话，并返回一个唯一的session_id
-    session_id = str(uuid4()) # 生成一个唯一的session_id
-
+def create_session(request: SessionCreateRequest):
+    # 为用户生成一个唯一的session_id，可以使用UUID或者其他方法
+    session_id = f"user_{request.user_id}_{uuid4()}"
     return {
         "success": True,
         "session_id": session_id
