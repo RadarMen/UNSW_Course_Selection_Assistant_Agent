@@ -36,3 +36,14 @@ def save_chat_message(
     db.refresh(message)
 
     return message
+
+def get_chat_messages_by_session(
+        db: Session,
+        session_id: str
+):
+    return (
+        db.query(ChatMessage)
+        .filter(ChatMessage.session_id == session_id)
+        .order_by(ChatMessage.created_at.asc())
+        .all()
+    )

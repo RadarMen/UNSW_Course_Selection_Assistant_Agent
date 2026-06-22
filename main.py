@@ -29,7 +29,11 @@ from auth_service import (
     authenticate_user
 )
 
-from chat_service import create_chat_session, save_chat_message
+from chat_service import (
+    create_chat_session,
+    save_chat_message,
+    get_chat_messages_by_session
+)
 
 app = FastAPI(title = "UNSW Course Assistant API")
 
@@ -138,17 +142,27 @@ def chat(
     }
 
 @app.get("/chat/history/{session_id}")
-def get_chat_history(session_id: str):
-    history = get_history(session_id)
+def get_chat_history(
+    session_id: str, 
+    db: Session = Depends(get_db)
+    ):
 
-    messages = []
-    for msg in history.messages:
-        messages.append(message_to_dict(msg))
+    messages = get_chat_messages_by_session(
+        db = db,
+        session_id = session_id
+    )
 
     return {
         "success": True,
         "session_id": session_id,
-        "messages": messages
+        "messages": [
+            {
+                "role": message.role,
+                "content": message.content,
+                "created_at": message.created_at
+            }
+            for message in messages
+        ]
     }
 
 @app.post("/chat/stream")
