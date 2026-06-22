@@ -34,7 +34,8 @@ from chat_service import (
     save_chat_message,
     get_chat_messages_by_session,
     get_chat_sessions_by_user,
-    get_chat_session_by_session_id
+    get_chat_session_by_session_id,
+    get_chat_sessions_by_user
 )
 
 app = FastAPI(title = "UNSW Course Assistant API")
@@ -179,8 +180,10 @@ def get_chat_history(
     }
 
 @app.post("/chat/stream")
-def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
-
+def chat_stream(
+    request: ChatRequest,
+    db: Session = Depends(get_db)
+):
     chat_session = get_chat_session_by_session_id(
         db=db,
         session_id=request.session_id
@@ -189,16 +192,33 @@ def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
     if not chat_session:
         raise HTTPException(
             status_code=404,
-            detail="会话不存在,请先创建会话"
+            detail="session_id 不存在，请先创建会话"
         )
 
     def generate():
+        full_response = ""
+
+        save_chat_message(
+            db=db,
+            session_id=request.session_id,
+            role="user",
+            content=request.message
+        )
+
         for chunk in rag_service.ask_stream(
             message=request.message,
             session_id=request.session_id,
             handbook_type=request.handbook_type
         ):
+            full_response += chunk
             yield chunk
+
+        save_chat_message(
+            db=db,
+            session_id=request.session_id,
+            role="assistant",
+            content=full_response
+        )
 
     return StreamingResponse(
         generate(),
@@ -306,6 +326,29 @@ def get_user_sessions(
                 "session_id": session.session_id,
                 "title": session.title,
                 "created_at": session.created_at
+            }
+            for session in sessions
+        ]
+    }
+
+@app.get("/user/{user_id}/sessions")
+def get_user_sessions(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    sessions = get_chat_sessions_by_user(
+        db=db,
+        user_id=user_id
+    )
+
+    return {
+        "success": True,
+        "user_id": user_id,
+        "sessions": [
+            {
+                "session_id": session.session_id,
+                "title": session.title,
+                "created_at": session.created_at.isoformat()
             }
             for session in sessions
         ]

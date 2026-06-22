@@ -68,3 +68,14 @@ def get_chat_session_by_session_id(
         .filter(ChatSession.session_id == session_id)
         .first()
     )
+
+def get_chat_sessions_by_user(
+        db: Session,
+        user_id: int
+):
+    return (
+        db.query(ChatSession)
+        .filter(ChatSession.user_id == user_id)
+        .order_by(ChatSession.created_at.desc())
+        .all()
+    )
