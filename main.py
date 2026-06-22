@@ -33,7 +33,8 @@ from chat_service import (
     create_chat_session,
     save_chat_message,
     get_chat_messages_by_session,
-    get_chat_sessions_by_user
+    get_chat_sessions_by_user,
+    get_chat_session_by_session_id
 )
 
 app = FastAPI(title = "UNSW Course Assistant API")
@@ -114,6 +115,17 @@ def chat(
     ):
     print("handbook_type:", request.handbook_type)
 
+    chat_session = get_chat_session_by_session_id(
+        db=db,
+        session_id=request.session_id
+    )
+
+    if not chat_session:
+        raise HTTPException(
+            status_code=404,
+            detail="会话不存在,请先创建会话"
+        )
+
     result = rag_service.ask(
         message=request.message,
         session_id=request.session_id,
@@ -167,7 +179,18 @@ def get_chat_history(
     }
 
 @app.post("/chat/stream")
-def chat_stream(request: ChatRequest):
+def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
+
+    chat_session = get_chat_session_by_session_id(
+        db=db,
+        session_id=request.session_id
+    )
+
+    if not chat_session:
+        raise HTTPException(
+            status_code=404,
+            detail="会话不存在,请先创建会话"
+        )
 
     def generate():
         for chunk in rag_service.ask_stream(
