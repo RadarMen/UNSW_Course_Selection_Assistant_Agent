@@ -29,7 +29,7 @@ from auth_service import (
     authenticate_user
 )
 
-from chat_service import create_chat_session
+from chat_service import create_chat_session, save_chat_message
 
 app = FastAPI(title = "UNSW Course Assistant API")
 
@@ -103,13 +103,29 @@ def create_session(
     
 
 @app.post("/chat")
-def chat(request: ChatRequest):
+def chat(
+    request: ChatRequest,
+    db: Session = Depends(get_db)
+    ):
     print("handbook_type:", request.handbook_type)
 
     result = rag_service.ask(
         message=request.message,
         session_id=request.session_id,
         handbook_type=request.handbook_type
+    )
+
+    save_chat_message(
+        db=db,
+        session_id=request.session_id,
+        role="user",
+        content=request.message
+    )
+
+    save_chat_message(
+        db=db,session_id=request.session_id,
+        role="assistant",
+        content=result["answer"]
     )
 
     return {
