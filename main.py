@@ -32,7 +32,8 @@ from auth_service import (
 from chat_service import (
     create_chat_session,
     save_chat_message,
-    get_chat_messages_by_session
+    get_chat_messages_by_session,
+    get_chat_sessions_by_user
 )
 
 app = FastAPI(title = "UNSW Course Assistant API")
@@ -262,4 +263,27 @@ def login(
             "username": user.username,
             "email": user.email
         }
+    }
+
+@app.get("/user/{user_id}/sessions")
+def get_user_sessions(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    sessions = get_chat_sessions_by_user(
+        db=db,
+        user_id=user_id
+    )
+
+    return {
+        "success": True,
+        "user_id": user_id,
+        "sessions": [
+            {
+                "session_id": session.session_id,
+                "title": session.title,
+                "created_at": session.created_at
+            }
+            for session in sessions
+        ]
     }
