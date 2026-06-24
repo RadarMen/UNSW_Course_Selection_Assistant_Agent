@@ -1,30 +1,34 @@
+# 基于 RAG 与 Agent 的 UNSW 智能选课助手
 
----
-
-# 基于RAG与Agent的UNSW智能选课助手
-
-> 基于 RAG（检索增强生成）、FastAPI、向量数据库和 LLM Query Parser 构建的 UNSW 智能选课辅助 Agent。
+> 一个基于 FastAPI、ChromaDB、MySQL 和大语言模型构建的 UNSW 智能选课辅助 Agent。
 
 ---
 
 # 项目简介
 
-本项目旨在为 UNSW（University of New South Wales）学生提供一个智能选课助手。
+本项目旨在为 UNSW 学生提供一个智能选课助手。
 
-系统能够读取 UNSW Handbook（课程手册），自动构建知识库，并结合大语言模型为学生提供课程信息查询、毕业要求查询以及选课建议。
+系统能够自动读取 UNSW Handbook（课程手册），构建课程知识库，并结合 Retrieval-Augmented Generation（RAG）与 Agent 技术，为学生提供：
 
-项目目标并非构建一个简单的聊天机器人，而是逐步演化为一个能够理解用户意图并辅助进行选课规划的 AI Agent。
+- 课程信息查询
+- 先修课查询
+- 毕业要求查询
+- Program Requirement 查询
+- 多轮上下文对话
+- 智能选课辅助
+
+项目最终目标是从传统的 RAG 问答系统演化为能够辅助学生进行选课规划的 AI Agent。
 
 ---
 
 # 核心功能
 
-## 1. Handbook上传与知识库构建
+## Handbook 上传与知识库构建
 
 支持上传：
 
-* Program Handbook（专业培养方案）
-* Course Handbook（课程手册）
+- Program Handbook
+- Course Handbook
 
 系统自动完成：
 
@@ -35,41 +39,42 @@ PDF上传
 ↓
 文本切分
 ↓
-Embedding向量化
+Embedding
 ↓
-Chroma向量数据库存储
+ChromaDB存储
 ```
 
 ---
 
-## 2. Metadata信息提取
+## Metadata 提取
 
-系统会自动提取课程相关元数据：
+系统自动提取：
 
 ```json
 {
-    "university": "UNSW",
-    "degree_level": "postgraduate",
-    "year": "2026",
-    "handbook_type": "course",
-    "program": "Artificial Intelligence",
-    "course_code": "COMP9417",
-    "prerequisites": "COMP9101,COMP9801"
+  "university": "UNSW",
+  "degree_level": "postgraduate",
+  "year": "2026",
+  "handbook_type": "course",
+  "program": "Artificial Intelligence",
+  "course_code": "COMP9417",
+  "prerequisites": [
+    "COMP9101",
+    "COMP9801"
+  ]
 }
 ```
 
 支持：
 
-* Program分类
-* Course分类
-* 课程代码识别
-* 先修课提取
+- Program识别
+- Course识别
+- Course Code提取
+- Prerequisite提取
 
 ---
 
-## 3. RAG问答系统
-
-系统基于 Retrieval-Augmented Generation（RAG）构建。
+## RAG 问答系统
 
 工作流程：
 
@@ -82,25 +87,25 @@ Chroma向量数据库存储
 ↓
 Prompt构建
 ↓
-Qwen大模型推理
+Qwen-Max
 ↓
 生成回答
 ```
 
 支持：
 
-* 课程信息查询
-* 专业培养方案查询
-* 毕业要求查询
-* Handbook内容问答
+- 课程信息查询
+- 专业培养方案查询
+- 毕业要求查询
+- 课程先修课查询
 
 ---
 
-## 4. Query Parser（查询解析层）
+# Agent 能力
 
-为了避免所有问题都直接进入 RAG，系统新增了 Query Parser 层。
+## Query Parser
 
-用户问题会首先被解析为结构化指令。
+系统会首先解析用户问题。
 
 例如：
 
@@ -110,19 +115,19 @@ Qwen大模型推理
 我已经修了COMP9101，可以选COMP9417吗？
 ```
 
-系统解析结果：
+解析结果：
 
 ```json
 {
-    "question_type": "prerequisite_check",
-    "target_course": "COMP9417",
-    "completed_courses": [
-        "COMP9101"
-    ]
+  "question_type": "prerequisite_check",
+  "target_course": "COMP9417",
+  "completed_courses": [
+    "COMP9101"
+  ]
 }
 ```
 
-从而实现：
+实现：
 
 ```text
 自然语言
@@ -134,27 +139,32 @@ Agent决策
 
 ---
 
-## 5. Agent路由机制
+## LLM Query Parser
 
-系统会根据问题类型自动决定检索策略。
+除了规则分类器之外，系统新增：
 
-例如：
+- LLM Query Parser
 
-### 课程信息类问题
+负责：
 
-```text
-COMP9517学什么？
-```
+- 问题分类
+- 意图识别
+- 课程提取
+- 结构化输出
 
-自动检索：
+同时保留：
 
-```text
-Course Handbook
-```
+- Rule Parser
+
+作为 Fallback。
 
 ---
 
-### 专业要求类问题
+## Agent Routing
+
+系统根据问题类型自动选择检索策略。
+
+### Program Requirement
 
 ```text
 AI Master需要多少学分毕业？
@@ -166,9 +176,19 @@ AI Master需要多少学分毕业？
 Program Handbook
 ```
 
----
+### Course Information
 
-### 先修课问题
+```text
+COMP9517学什么？
+```
+
+自动检索：
+
+```text
+Course Handbook
+```
+
+### Prerequisite
 
 ```text
 COMP9417有什么先修课？
@@ -177,77 +197,90 @@ COMP9417有什么先修课？
 自动检索：
 
 ```text
+Course Metadata
++
 Course Handbook
-+ Metadata
 ```
 
 ---
 
-## 6. LLM Query Parser
+# 用户系统
 
-除了传统规则分类器外，系统还实现了基于大语言模型的 Query Parser。
+系统支持：
 
-工作流程：
-
-```text
-用户问题
-↓
-LLM解析
-↓
-结构化JSON
-↓
-Agent决策
-```
-
-同时保留：
-
-```text
-Rule Parser
-```
-
-作为兜底方案（Fallback）。
-
-保证系统稳定运行。
+- 用户注册
+- 用户登录
+- 用户会话管理
+- 聊天记录持久化
 
 ---
 
-## 7. 会话管理
+## 用户模型
+
+```text
+User
+├── user_id
+├── username
+├── email
+└── password
+```
+
+---
+
+## 会话模型
+
+```text
+Chat Session
+├── session_id
+├── user_id
+└── created_at
+```
+
+一个用户可以拥有多个对话。
+
+例如：
+
+```text
+彭哲锴
+├── AI Master毕业要求
+├── COMP9417课程咨询
+├── COMP9517课程咨询
+└── 实习规划
+```
+
+---
+
+## 消息模型
+
+```text
+Chat Message
+├── session_id
+├── role
+├── content
+└── created_at
+```
 
 支持：
 
-```text
-Session
-Conversation History
-Multi-turn Chat
-```
-
-每个 Session 拥有独立对话历史。
-
----
-
-## 8. 流式输出
-
-支持：
-
-```http
-POST /chat
-POST /chat/stream
-```
-
-实现类似 ChatGPT 的实时生成效果。
+- 多轮对话
+- 上下文记忆
+- 聊天历史查询
 
 ---
 
 # 系统架构
 
 ```text
-用户
+User
  │
  ▼
 FastAPI
  │
  ▼
-Chat API
+Authentication
+ │
+ ▼
+Session Management
  │
  ▼
 Query Parser Layer
@@ -261,8 +294,8 @@ Structured Query JSON
 RAG Service
  ├── Metadata Filter
  ├── Vector Retrieval
- ├── Session History
- └── Prompt Builder
+ ├── Prompt Builder
+ └── History Memory
  │
  ▼
 Qwen-Max
@@ -273,155 +306,156 @@ Answer
 
 ---
 
-# API接口
+# 数据库结构
 
-## 上传Handbook
-
-```http
-POST /upload
+```text
+users
+│
+│ 1 : N
+│
+▼
+chat_sessions
+│
+│ 1 : N
+│
+▼
+chat_messages
 ```
-
-上传课程手册并构建知识库。
 
 ---
 
-## 创建会话
+# API 接口
 
-```http
-POST /session/create
-```
+## 用户系统
 
-创建新的聊天会话。
+### POST /auth/register
 
----
+用户注册
 
-## 普通问答
+### POST /auth/login
 
-```http
-POST /chat
-```
-
-返回完整回答。
+用户登录
 
 ---
 
-## 流式问答
+## 会话管理
 
-```http
-POST /chat/stream
-```
+### POST /session/create
 
-实时返回生成结果。
+创建新会话
+
+### GET /user/{user_id}/sessions
+
+查询用户所有会话
 
 ---
 
-## 查询聊天历史
+## 聊天系统
 
-```http
-GET /chat/history/{session_id}
-```
+### POST /chat
 
-获取指定会话历史记录。
+普通问答
+
+### POST /chat/stream
+
+流式问答
+
+### GET /chat/history/{session_id}
+
+查询聊天历史
+
+---
+
+## 知识库管理
+
+### POST /upload
+
+上传 Handbook
 
 ---
 
 # 技术栈
 
-## 后端框架
+## Backend
 
-* FastAPI
+- FastAPI
 
-## 大语言模型
+## Database
 
-* Qwen-Max
-* Tongyi Chat Model
+- MySQL
 
-## Embedding模型
+## Vector Database
 
-* DashScope Embedding
+- ChromaDB
 
-## 向量数据库
+## LLM
 
-* ChromaDB
+- Qwen-Max
+- Tongyi
 
-## Agent框架
+## Framework
 
-* LangChain
-
-## 数据存储
-
-* Local File Storage
-* Chroma Vector Store
+- LangChain
 
 ---
 
 # 当前完成情况
 
-## 已完成
+## Agent MVP
 
-### RAG部分
-
-* PDF上传
-* PDF解析
-* Metadata提取
-* Chroma向量数据库
-* 检索增强生成（RAG）
-
-### Agent部分
-
-* Query Parser
-* Rule-based Routing
-* LLM Query Parser
-* Structured Query Parsing
-* Agent Routing
-
-### 工程部分
-
-* FastAPI接口化
-* Session管理
-* 对话历史管理
-* Streaming输出
+- [x] PDF上传
+- [x] Metadata提取
+- [x] ChromaDB
+- [x] RAG问答
+- [x] Query Parser
+- [x] LLM Query Parser
+- [x] Agent Routing
 
 ---
 
-## 后续规划
+## Product MVP
 
-### 产品化
-
-* 用户注册
-* 用户登录
-* 用户隔离
-
-### Agent增强
-
-* 学分计算
-* 先修课依赖分析
-* 课程关系图谱
-* 自动选课规划
-
-### 部署
-
-* Docker部署
-* 云服务器部署
-* Web前端
+- [x] 用户注册
+- [x] 用户登录
+- [x] MySQL持久化
+- [x] 会话管理
+- [x] 聊天记录管理
+- [x] 流式输出
 
 ---
 
-# 项目目标
+## 下一步规划
 
-构建一个真正能够辅助 UNSW 学生完成：
+### Frontend
+
+- [ ] Vue3 前端
+- [ ] 登录页
+- [ ] 注册页
+- [ ] 会话管理页
+- [ ] 聊天页面
+- [ ] Handbook上传页面
+
+### Agent Enhancement
+
+- [ ] 自动学分计算
+- [ ] 课程依赖分析
+- [ ] Program Requirement 推理
+- [ ] 自动选课规划
+
+### Deployment
+
+- [ ] Docker
+- [ ] 云服务器部署
+- [ ] HTTPS
+
+---
+
+# 项目状态
 
 ```text
-课程查询
-↓
-培养方案理解
-↓
-选课规划
-↓
-毕业要求分析
+RAG MVP        ✅ 完成
+Agent MVP      ✅ 完成
+Product MVP    ✅ 完成
+
+Frontend MVP   🚧 开发中
 ```
-
-的智能选课 Agent。
-
----
-
