@@ -1,1 +1,4 @@
 开发README.md
+.env
+.env.*
+mysql-init/*.sql

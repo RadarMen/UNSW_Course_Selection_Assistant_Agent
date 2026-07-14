@@ -1,0 +1,78 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: unsw-course-agent-mysql
+    restart: unless-stopped
+
+    env_file:
+      - .env.docker
+
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+    ports:
+      - "3307:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD} --silent"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: unsw-course-agent-backend:dev
+    container_name: unsw-course-agent-backend
+    restart: unless-stopped
+
+    ports:
+      - "8000:8000"
+
+    env_file:
+      - .env.docker
+
+    environment:
+      - DASHSCOPE_API_KEY
+
+    volumes:
+      - ./chroma_db:/app/chroma_db
+      - ./chat_history:/app/chat_history
+      - ./data:/app/data
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    image: unsw-course-agent-frontend:dev
+    container_name: unsw-course-agent-frontend
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+
+    depends_on:
+      - backend
+
+
+volumes:
+  mysql_data:
